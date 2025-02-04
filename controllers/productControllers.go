@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"go-micro/config"
 	"go-micro/models"
 	"log"
@@ -37,7 +38,26 @@ func GetProducts(c *gin.Context){
 	})
 }
 
-func GetProduct(c *gin.Context){}
+func GetProduct(c *gin.Context) {
+	var id = c.Param("id")
+	var query = "SELECT id, name, description, price, category, stock_count FROM products WHERE id = $1"
+	row := config.DB.QueryRow(query, id)
+	var product models.Product
+	err := row.Scan(&product.ID, &product.Name, &product.Description, &product.Price, &product.Category, &product.StockCount)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		} else {
+			log.Println("Error fetching product: ", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch product"})
+		}
+		return
+	}
+
+	// Return the product data as a JSON response
+	c.JSON(http.StatusOK, gin.H{"product": product})
+}
+
 
 func UpdateProduct(c *gin.Context){}
 
