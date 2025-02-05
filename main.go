@@ -27,7 +27,7 @@ func main() {
 
   router.POST("/products/:id/reviews", middlewares.AuthMiddleware(), controllers.AddReview)
   router.GET("/products/:id/reviews", controllers.GetReviews)
-  router.DELETE("/products/:id/reviews/:id", controllers.DeleteReview)
+  router.DELETE("/products/:id/reviews/:id", middlewares.AuthMiddleware(), controllers.DeleteReview)
 
   router.Run()
 }
