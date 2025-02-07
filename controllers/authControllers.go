@@ -79,13 +79,17 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	claims := &jwt.RegisteredClaims{
-		Subject:   string(rune(storedUser.ID)),
-		Issuer:    "ginmart-micro",
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+	claims := &models.Claims{
+		UserID: user.ID,
+		Role:   user.Role, // Include the role
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   string(rune(storedUser.ID)),
+			Issuer:    "ginmart-micro",
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
 	}
-
+	
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
