@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"go-micro/models"
 	"log"
 	"net/http"
 	"os"
@@ -30,7 +31,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		claims := &jwt.RegisteredClaims{}
+		claims := &models.Claims{}
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte(secretKey), nil
 		})
@@ -41,7 +42,8 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("userID", claims.Subject)
+		c.Set("userID", claims.UserID)
+		c.Set("role", claims.Role)
 
 		c.Next()
 	}
