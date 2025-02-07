@@ -10,7 +10,35 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AddProduct(c *gin.Context){}
+func AddProduct(c *gin.Context){
+	userRole, exists := c.Get("role")
+	if !exists || userRole != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied. Admins only"})
+		return
+	}
+
+	var product models.Product
+	if err := c.ShouldBindJSON(&product); err != nil {
+		log.Println("Invalid request body:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input data"})
+		return
+	}
+
+	query := `INSERT INTO products (name, description, price, category, stock_count) 
+	          VALUES ($1, $2, $3, $4, $5) RETURNING id`
+	err := config.DB.QueryRow(query, product.Name, product.Description, product.Price, product.Category, product.StockCount).Scan(&product.ID)
+
+	if err != nil {
+		log.Println("Error inserting product:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add product"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Product added successfully",
+		"product": product,
+	})
+}
 
 func GetProducts(c *gin.Context){
 	var products []models.Product
@@ -54,11 +82,33 @@ func GetProduct(c *gin.Context) {
 		return
 	}
 
-	// Return the product data as a JSON response
 	c.JSON(http.StatusOK, gin.H{"product": product})
 }
 
 
 func UpdateProduct(c *gin.Context){}
 
-func DeleteProduct(c *gin.Context){}
+func DeleteProduct(c *gin.Context){
+	productId := c.Param("id")
+	query := "DELETE FROM products WHERE id = $1" 
+	result, err := config.DB.Exec(query, productId)
+	
+	if err != nil {
+		log.Println("error deleting product: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete product"})
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Println("Error getting affected rows:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete product"})
+		return
+	}
+	if rowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "product deleted successfully"})
+}
