@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+	"fmt"
 	"go-micro/config"
 	"go-micro/models"
 	"log"
@@ -86,7 +87,76 @@ func GetProduct(c *gin.Context) {
 }
 
 
-func UpdateProduct(c *gin.Context){}
+func UpdateProduct(c *gin.Context) {
+	productID := c.Param("id")
+
+	userRole, exists := c.Get("role")
+	if !exists || userRole != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied. Admins only"})
+		return
+	}
+
+	var updatedProduct models.Product
+	if err := c.ShouldBindJSON(&updatedProduct); err != nil {
+		log.Println("Invalid request body:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input data"})
+		return
+	}
+
+	if updatedProduct.Name == "" && updatedProduct.Description == "" && updatedProduct.Price == 0 && updatedProduct.Category == "" && updatedProduct.StockCount == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "At least one field must be updated"})
+		return
+	}
+
+	query := "UPDATE products SET "
+	var args []interface{}
+	argIndex := 1
+
+	if updatedProduct.Name != "" {
+		query += fmt.Sprintf("name = $%d, ", argIndex)
+		args = append(args, updatedProduct.Name)
+		argIndex++
+	}
+	if updatedProduct.Description != "" {
+		query += fmt.Sprintf("description = $%d, ", argIndex)
+		args = append(args, updatedProduct.Description)
+		argIndex++
+	}
+	if updatedProduct.Price != 0 {
+		query += fmt.Sprintf("price = $%d, ", argIndex)
+		args = append(args, updatedProduct.Price)
+		argIndex++
+	}
+	if updatedProduct.Category != "" {
+		query += fmt.Sprintf("category = $%d, ", argIndex)
+		args = append(args, updatedProduct.Category)
+		argIndex++
+	}
+	if updatedProduct.StockCount != 0 {
+		query += fmt.Sprintf("stock_count = $%d, ", argIndex)
+		args = append(args, updatedProduct.StockCount)
+		argIndex++
+	}
+
+	query = query[:len(query)-2] + fmt.Sprintf(" WHERE id = $%d", argIndex)
+	args = append(args, productID)
+
+	result, err := config.DB.Exec(query, args...)
+	if err != nil {
+		log.Println("Error updating product:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product"})
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found or no changes made"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Product updated successfully"})
+}
+
 
 func DeleteProduct(c *gin.Context){
 	productId := c.Param("id")
