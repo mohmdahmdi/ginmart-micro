@@ -39,7 +39,31 @@ func AddReview(c *gin.Context){
 		"review": review,
 	})}
 
-func GetReviews(c *gin.Context){}
+func GetReviews(c *gin.Context){
+	var reviews [] models.Review
+	rows , err := config.DB.Query("SELECT id, product_id, user_id, rating, comment FROM products")
+	if err != nil {
+		log.Println("Error fetching reviews: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reviews"})
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var r models.Review
+		err := rows.Scan(&r.ID, &r.ProductId, &r.UserId, &r.Rating, &r.Comment)
+		if err != nil {
+			log.Println("Error scanning row: ", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read review data"})
+			return
+		}
+		reviews = append(reviews, r)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"reviews": reviews,
+	})
+}
 
 func DeleteReview(c *gin.Context){
 	productId := c.Param("id")
